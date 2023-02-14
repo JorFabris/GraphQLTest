@@ -1,6 +1,9 @@
 import { ApolloServer } from "@apollo/server";
+import { ApolloServerErrorCode } from "@apollo/server/errors";
 import { startStandaloneServer } from "@apollo/server/standalone";
+import { GraphQLError } from "graphql";
 import { v1 as uuid } from "uuid";
+
 const people = [
   {
     name: "Jorge",
@@ -71,6 +74,11 @@ const resolvers = {
   },
   Mutation: {
     addPerson: (root, args) => {
+      if (people.find((fPerson) => fPerson.name === args.name)) {
+        throw new GraphQLError("Person name must be unique", {
+          extensions: { code: "INVALID_ARGS" },
+        });
+      }
       const person = { ...args, id: uuid() };
       people.push(person); //Update database
       return person;
