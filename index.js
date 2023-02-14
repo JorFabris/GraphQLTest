@@ -23,12 +23,16 @@ const people = [
     name: "Andres",
     street: "Null 123",
     id: "cba21914-b300-4726-9a82-836af67665b5",
-    phone: "342-7896-2345",
     city: "Madrid",
   },
 ];
 
 const typeDefinitions = `#graphql
+    enum YesNo {
+        YES,
+        NO
+    }
+
     type Address {
         city: String!
         street: String!
@@ -36,21 +40,21 @@ const typeDefinitions = `#graphql
 
   type Person {
     name: String!
-    phone: String!
+    phone: String
     address: Address!
     id: ID!
   }
 
   type Query {
     personCount: Int!
-    allPeople: [Person]!
+    allPeople(phone: YesNo): [Person]!
     findPerson(name: String!): Person!
   }
 
   type Mutation {
     addPerson(
         name: String!
-        phone: String!
+        phone: String
         street: String!
         city: String!
     ): Person
@@ -60,9 +64,18 @@ const typeDefinitions = `#graphql
 const resolvers = {
   Query: {
     personCount: () => people.length,
-    allPeople: () => people,
-    findPerson: (root, { name }) =>
-      people.find((fPerson) => fPerson.name === name),
+    allPeople: (root, args) => {
+      if (!args.phone) return people;
+
+      const filterByPhone = (person) => (person.phone ? person : null);
+      const filterByNoPhone = (person) => (!person.phone ? person : null);
+
+      return args.phone === "YES"
+        ? people.filter(filterByPhone)
+        : people.filter(filterByNoPhone);
+    },
+    findPerson: (root, args) =>
+      people.find((fPerson) => fPerson.name === args.name),
   },
   Person: {
     address: (root) => {
