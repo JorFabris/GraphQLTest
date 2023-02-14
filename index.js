@@ -58,6 +58,10 @@ const typeDefinitions = `#graphql
         street: String!
         city: String!
     ): Person
+    editPhone(
+        id: String!
+        phone: String!
+    ): Person
   }
 `;
 
@@ -95,6 +99,16 @@ const resolvers = {
       const person = { ...args, id: uuid() };
       people.push(person); //Update database
       return person;
+    },
+    editPhone: (root, args) => {
+      const personIndex = people.findIndex((person) => person.id === args.id);
+
+      if (personIndex === -1) return null;
+
+      const person = people[personIndex];
+      const updatedPerson = { ...person, phone: args.phone };
+      people[personIndex] = updatedPerson;
+      return updatedPerson;
     },
   },
 };
