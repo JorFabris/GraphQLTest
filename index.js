@@ -1,9 +1,9 @@
 import { ApolloServer } from "@apollo/server";
-import { ApolloServerErrorCode } from "@apollo/server/errors";
+
 import { startStandaloneServer } from "@apollo/server/standalone";
-import axios from "axios";
-import { GraphQLError } from "graphql";
-import { v1 as uuid } from "uuid";
+
+import "./db.connection.js";
+import personModel from "./models/person.model.js";
 
 const typeDefinitions = `#graphql
     enum YesNo {
@@ -45,20 +45,17 @@ const typeDefinitions = `#graphql
 
 const resolvers = {
   Query: {
-    personCount: () => people.length,
+    personCount: async () => await personModel.collection.countDocuments(),
     allPeople: async (root, args) => {
-      const { data: people } = await axios.get("http://localhost:3000/persons");
-      if (!args.phone) return people;
+      if (!args.phone) return await personModel.find();
 
-      const filterByPhone = (person) => (person.phone ? person : null);
-      const filterByNoPhone = (person) => (!person.phone ? person : null);
-
-      return args.phone === "YES"
-        ? people.filter(filterByPhone)
-        : people.filter(filterByNoPhone);
+      return personModel.find({
+        phone: { $exists: args.phone === "YES" },
+      });
     },
-    findPerson: (root, args) =>
-      people.find((fPerson) => fPerson.name === args.name),
+    findPerson: async (root, args) => {
+      return await personModel.findOne({ name: args.name });
+    },
   },
   Person: {
     address: (root) => {
@@ -69,25 +66,15 @@ const resolvers = {
     },
   },
   Mutation: {
-    addPerson: (root, args) => {
-      if (people.find((fPerson) => fPerson.name === args.name)) {
-        throw new GraphQLError("Person name must be unique", {
-          extensions: { code: "INVALID_ARGS" },
-        });
-      }
-      const person = { ...args, id: uuid() };
-      people.push(person); //Update database
+    addPerson: async (root, args) => {
+      const person = new personModel({ ...args });
+      await person.save();
       return person;
     },
-    editPhone: (root, args) => {
-      const personIndex = people.findIndex((person) => person.id === args.id);
-
-      if (personIndex === -1) return null;
-
-      const person = people[personIndex];
-      const updatedPerson = { ...person, phone: args.phone };
-      people[personIndex] = updatedPerson;
-      return updatedPerson;
+    editPhone: async (root, args) => {
+      const person = await personModel.findById(args.id);
+      person.phone = args.phone;
+      return await person.save();
     },
   },
 };
